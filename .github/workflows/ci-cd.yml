@@ -1,4 +1,3 @@
-```yaml
 name: Kubernetes Calculator CI-CD
 
 on:
