@@ -34,7 +34,7 @@ jobs:
       - name: Build Docker image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: pwsh
+        shell: powershell
         run: |
           $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
           docker build -t $image .
@@ -43,7 +43,7 @@ jobs:
       - name: Push Docker image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: pwsh
+        shell: powershell
         run: |
           $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
           docker push $image
@@ -52,7 +52,7 @@ jobs:
       - name: Deploy to Kubernetes
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: pwsh
+        shell: powershell
         run: |
           $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
 
