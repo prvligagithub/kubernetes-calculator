@@ -1,99 +1,48 @@
-
 name: Kubernetes Calculator CI-CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  build-test-deploy:
-    runs-on: self-hosted
+  test:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify Python installation
-        shell: powershell
-        run: |
-          python --version
-          if ($LASTEXITCODE -ne 0) {
-            throw "Python is unavailable."
-          }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
-        shell: powershell
-        run: |
-          python -m pip install -r requirements.txt
-          if ($LASTEXITCODE -ne 0) {
-            throw "Dependency installation failed."
-          }
+        run: python -m pip install -r requirements.txt
 
-      - name: Run automated tests
-        shell: powershell
-        run: |
-          python -m pytest -v
-          if ($LASTEXITCODE -ne 0) {
-            throw "Automated tests failed."
-          }
+      - name: Run tests
+        run: python -m pytest -v
 
-      - name: Verify Docker availability
-        shell: powershell
-        run: |
-          docker --version
-          if ($LASTEXITCODE -ne 0) {
-            throw "Docker is unavailable."
-          }
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
 
-      - name: Log in to Docker Hub
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            24mis0392/k8s-practical:${{ github.sha }}
-
-      - name: Verify Kubernetes availability
-        shell: powershell
-        run: |
-          kubectl config current-context
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes context is not configured."
-          }
-
-          kubectl cluster-info
-          if ($LASTEXITCODE -ne 0) {
-            throw "Cannot connect to Kubernetes."
-          }
-
-      - name: Deploy to Kubernetes
-        shell: powershell
-        run: |
-          kubectl apply -f k8s/deployment.yaml
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to apply Kubernetes manifests."
-          }
-
-          kubectl set image deployment/calculator-deployment calculator=24mis0392/k8s-practical:${{ github.sha }}
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to update the deployment image."
-          }
-
-          kubectl rollout status deployment/calculator-deployment --timeout=180s
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes rollout failed."
-          }
-
-          kubectl get deployment calculator-deployment
-          kubectl get pods
-          kubectl get services
+          tags: 24mis0392/k8s-practical:${{ github.sha }}
