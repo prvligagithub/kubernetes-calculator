@@ -63,7 +63,17 @@ jobs:
           }
 
           Write-Host "Docker Hub secrets are present."
-
+          
+      - name: Check Docker Hub credentials
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: powershell
+        run: |
+          Write-Host "Username configured: $(-not [string]::IsNullOrWhiteSpace($env:DOCKERHUB_USERNAME))"
+          Write-Host "Token configured: $(-not [string]::IsNullOrWhiteSpace($env:DOCKERHUB_TOKEN))"
+          Write-Host "Username matches expected account: $($env:DOCKERHUB_USERNAME -eq '24mis0392')"   
+          
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
