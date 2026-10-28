@@ -67,4 +67,4 @@ jobs:
 
           kubectl get deployment calculator-deployment
           kubectl get pods
-          kubectl get services
+          kubectl get service
