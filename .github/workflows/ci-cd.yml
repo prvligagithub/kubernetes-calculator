@@ -1,3 +1,4 @@
+```yaml
 name: Kubernetes Calculator CI-CD
 
 on:
@@ -21,7 +22,7 @@ jobs:
         run: |
           python --version
           if ($LASTEXITCODE -ne 0) {
-            throw "Python is not installed or is not available in PATH."
+            throw "Python is not installed or not available in PATH."
           }
 
       - name: Install dependencies
@@ -45,7 +46,7 @@ jobs:
         run: |
           docker --version
           if ($LASTEXITCODE -ne 0) {
-            throw "Docker is unavailable. Start Docker Desktop and check PATH."
+            throw "Docker is unavailable. Start Docker Desktop."
           }
 
       - name: Verify Docker Hub secrets
@@ -55,25 +56,19 @@ jobs:
         shell: powershell
         run: |
           if ([string]::IsNullOrWhiteSpace($env:DOCKERHUB_USERNAME)) {
-            throw "DOCKERHUB_USERNAME secret is missing or empty."
+            throw "DOCKERHUB_USERNAME secret is missing."
           }
 
           if ([string]::IsNullOrWhiteSpace($env:DOCKERHUB_TOKEN)) {
-            throw "DOCKERHUB_TOKEN secret is missing or empty."
+            throw "DOCKERHUB_TOKEN secret is missing."
           }
 
-          Write-Host "Docker Hub secrets are present."
-          
-      - name: Check Docker Hub credentials
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        shell: powershell
-        run: |
-          Write-Host "Username configured: $(-not [string]::IsNullOrWhiteSpace($env:DOCKERHUB_USERNAME))"
-          Write-Host "Token configured: $(-not [string]::IsNullOrWhiteSpace($env:DOCKERHUB_TOKEN))"
-          Write-Host "Username matches expected account: $($env:DOCKERHUB_USERNAME -eq '24mis0392')"   
-          
+          if ($env:DOCKERHUB_USERNAME -ne "24mis0392") {
+            throw "Unexpected Docker Hub username."
+          }
+
+          Write-Host "Docker Hub secrets are configured."
+
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -83,7 +78,7 @@ jobs:
           $env:DOCKERHUB_TOKEN | docker login -u $env:DOCKERHUB_USERNAME --password-stdin
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Docker Hub login failed. Verify the username and access token in GitHub Secrets."
+            throw "Docker Hub login failed. Verify the repository secrets."
           }
 
       - name: Build Docker image
@@ -150,7 +145,7 @@ jobs:
           kubectl rollout status deployment/calculator-deployment --timeout=180s
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes rollout failed. Inspect the deployment and pod events."
+            throw "Kubernetes rollout failed."
           }
 
           Write-Host "Deployment completed successfully."
@@ -158,3 +153,4 @@ jobs:
           kubectl get deployment calculator-deployment
           kubectl get pods
           kubectl get services
+```
