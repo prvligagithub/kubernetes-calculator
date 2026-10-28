@@ -1,155 +1,46 @@
-name: Kubernetes Calculator CI-CD
+name: Calculator CI-CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  build-test-deploy:
-    runs-on: self-hosted
-
+  test:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify Python installation
-        shell: powershell
-        run: |
-          python --version
-          if ($LASTEXITCODE -ne 0) {
-            throw "Python is not installed or not available in PATH."
-          }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
-        shell: powershell
-        run: |
-          python -m pip install -r requirements.txt
-          if ($LASTEXITCODE -ne 0) {
-            throw "Dependency installation failed."
-          }
+        run: pip install -r requirements.txt
 
-      - name: Run automated tests
-        shell: powershell
-        run: |
-          python -m pytest -v
-          if ($LASTEXITCODE -ne 0) {
-            throw "Automated tests failed."
-          }
+      - name: Run tests
+        run: python -m pytest -v
 
-      - name: Verify Docker availability
-        shell: powershell
-        run: |
-          docker --version
-          if ($LASTEXITCODE -ne 0) {
-            throw "Docker is unavailable. Start Docker Desktop."
-          }
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Verify Docker Hub secrets
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        shell: powershell
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:DOCKERHUB_USERNAME)) {
-            throw "DOCKERHUB_USERNAME secret is missing."
-          }
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-          if ([string]::IsNullOrWhiteSpace($env:DOCKERHUB_TOKEN)) {
-            throw "DOCKERHUB_TOKEN secret is missing."
-          }
-
-          if ($env:DOCKERHUB_USERNAME -ne "24mis0392") {
-            throw "Unexpected Docker Hub username."
-          }
-
-          Write-Host "Docker Hub secrets are configured."
-
-      - name: Log in to Docker Hub
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        shell: powershell
-        run: |
-          $env:DOCKERHUB_TOKEN | docker login -u $env:DOCKERHUB_USERNAME --password-stdin
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Docker Hub login failed. Verify the repository secrets."
-          }
-
-      - name: Build Docker image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: powershell
-        run: |
-          $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
-
-          Write-Host "Building image: $image"
-          docker build -t $image .
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Docker image build failed."
-          }
-
-      - name: Push Docker image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: powershell
-        run: |
-          $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
-
-          docker push $image
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Docker image push failed."
-          }
-
-      - name: Verify Kubernetes availability
-        shell: powershell
-        run: |
-          kubectl config current-context
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes context is not configured."
-          }
-
-          kubectl cluster-info
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Cannot connect to the Kubernetes cluster."
-          }
-
-      - name: Deploy to Kubernetes
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        shell: powershell
-        run: |
-          $image = "${env:DOCKERHUB_USERNAME}/k8s-practical:${env:GITHUB_SHA}"
-
-          kubectl apply -f k8s/deployment.yaml
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes manifest application failed."
-          }
-
-          kubectl set image deployment/calculator-deployment calculator=$image
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes image update failed."
-          }
-
-          kubectl rollout status deployment/calculator-deployment --timeout=180s
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Kubernetes rollout failed."
-          }
-
-          Write-Host "Deployment completed successfully."
-
-          kubectl get deployment calculator-deployment
-          kubectl get pods
-          kubectl get services
-
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: siddeadskull11/calculator-cicd:v1
